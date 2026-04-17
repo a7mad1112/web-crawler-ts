@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  extractPageData,
   getFirstParagraphFromHTML,
   getHeadingFromHTML,
   getImagesFromHTML,
@@ -183,6 +184,77 @@ describe("getImagesFromHTML", () => {
       "https://crawler-test.com/a.png",
       "https://crawler-test.com/b.png",
     ];
+
+    expect(actual).toEqual(expected);
+  });
+});
+
+describe("extractPageData", () => {
+  test("extractPageData basic", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `
+      <html><body>
+        <h1>Test Title</h1>
+        <p>This is the first paragraph.</p>
+        <a href="/link1">Link 1</a>
+        <img src="/image1.jpg" alt="Image 1">
+      </body></html>
+    `;
+
+    const actual = extractPageData(inputBody, inputURL);
+    const expected = {
+      url: "https://crawler-test.com",
+      heading: "Test Title",
+      first_paragraph: "This is the first paragraph.",
+      outgoing_links: ["https://crawler-test.com/link1"],
+      image_urls: ["https://crawler-test.com/image1.jpg"],
+    };
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("uses h2 fallback and main paragraph priority", () => {
+    const inputURL = "https://crawler-test.com/page";
+    const inputBody = `
+      <html><body>
+        <h2>Fallback Heading</h2>
+        <p>Outside paragraph.</p>
+        <main>
+          <p>Main first paragraph.</p>
+        </main>
+        <a href="/a">A</a>
+        <a href="https://site.test/b">B</a>
+        <img src="/img.png">
+      </body></html>
+    `;
+
+    const actual = extractPageData(inputBody, inputURL);
+    const expected = {
+      url: "https://crawler-test.com/page",
+      heading: "Fallback Heading",
+      first_paragraph: "Main first paragraph.",
+      outgoing_links: [
+        "https://crawler-test.com/a",
+        "https://site.test/b",
+      ],
+      image_urls: ["https://crawler-test.com/img.png"],
+    };
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("returns empty values when page has no matching tags", () => {
+    const inputURL = "https://crawler-test.com/empty";
+    const inputBody = `<html><body><div>No useful tags</div></body></html>`;
+
+    const actual = extractPageData(inputBody, inputURL);
+    const expected = {
+      url: "https://crawler-test.com/empty",
+      heading: "",
+      first_paragraph: "",
+      outgoing_links: [],
+      image_urls: [],
+    };
 
     expect(actual).toEqual(expected);
   });
