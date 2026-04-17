@@ -39,8 +39,16 @@ async function main(): Promise<void> {
 	console.log(`starting crawl of: ${baseURL}`);
 	console.log(`using maxConcurrency=${maxConcurrency}, maxPages=${maxPages}`);
 	const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxPages);
-	console.log("crawl complete");
-	console.log(pages);
+
+	console.log("Finished crawling.");
+	const firstPage = Object.values(pages)[0];
+	if (firstPage) {
+		console.log(`First page record: ${firstPage["url"]} - ${firstPage["heading"]}`);
+	}
+
+	for (const [normalizedURL, data] of Object.entries(pages)) {
+		console.log(`${normalizedURL} -> ${data.url}`);
+	}
 }
 
 void main();

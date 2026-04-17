@@ -84,7 +84,8 @@ export function extractPageData(html: string, pageURL: string): ExtractedPageDat
 export class ConcurrentCrawler {
   private baseURL: string;
   private baseURLObj: URL;
-  private pages: Record<string, number>;
+  private pages: Record<string, ExtractedPageData>;
+  private visitedURLs: Set<string>;
   private limit: ReturnType<typeof pLimit>;
   private maxPages: number;
   private shouldStop: boolean;
@@ -94,6 +95,7 @@ export class ConcurrentCrawler {
     this.baseURL = baseURL;
     this.baseURLObj = new URL(baseURL);
     this.pages = {};
+    this.visitedURLs = new Set<string>();
     this.limit = pLimit(maxConcurrency);
     this.maxPages = maxPages;
     this.shouldStop = false;
@@ -105,18 +107,17 @@ export class ConcurrentCrawler {
       return false;
     }
 
-    if (this.pages[normalizedURL]) {
-      this.pages[normalizedURL]++;
+    if (this.visitedURLs.has(normalizedURL)) {
       return false;
     }
 
-    if (Object.keys(this.pages).length >= this.maxPages) {
+    if (this.visitedURLs.size >= this.maxPages) {
       this.shouldStop = true;
       console.log("Reached maximum number of pages to crawl.");
       return false;
     }
 
-    this.pages[normalizedURL] = 1;
+    this.visitedURLs.add(normalizedURL);
     return true;
   }
 
@@ -180,33 +181,33 @@ export class ConcurrentCrawler {
       return;
     }
 
-    let nextURLs: string[];
     try {
-      nextURLs = getURLsFromHTML(html, this.baseURL);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`error extracting links from ${currentURL}: ${message}`);
-      return;
-    }
+      const data = extractPageData(html, currentURL);
+      this.pages[normalizedCurrentURL] = data;
 
-    const crawlPromises: Promise<void>[] = [];
-    for (const nextURL of nextURLs) {
-      if (this.shouldStop) {
-        break;
+      const crawlPromises: Promise<void>[] = [];
+      for (const nextURL of data.outgoing_links) {
+        if (this.shouldStop) {
+          break;
+        }
+
+        const crawlTask = this.crawlPage(nextURL);
+        this.allTasks.add(crawlTask);
+        void crawlTask.finally(() => {
+          this.allTasks.delete(crawlTask);
+        });
+        crawlPromises.push(crawlTask);
       }
 
-      const crawlTask = this.crawlPage(nextURL);
-      this.allTasks.add(crawlTask);
-      void crawlTask.finally(() => {
-        this.allTasks.delete(crawlTask);
-      });
-      crawlPromises.push(crawlTask);
+      await Promise.all(crawlPromises);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`error extracting page data from ${currentURL}: ${message}`);
+      return;
     }
-
-    await Promise.all(crawlPromises);
   }
 
-  async crawl(): Promise<Record<string, number>> {
+  async crawl(): Promise<Record<string, ExtractedPageData>> {
     const rootTask = this.crawlPage(this.baseURL);
     this.allTasks.add(rootTask);
     void rootTask.finally(() => {
@@ -227,7 +228,7 @@ export async function crawlSiteAsync(
   baseURL: string,
   maxConcurrency: number = 5,
   maxPages: number = 100,
-): Promise<Record<string, number>> {
+): Promise<Record<string, ExtractedPageData>> {
   const crawler = new ConcurrentCrawler(baseURL, maxConcurrency, maxPages);
   return await crawler.crawl();
 }
