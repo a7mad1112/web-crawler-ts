@@ -1,4 +1,6 @@
-function main(): void {
+import { getHTML } from "./crawl";
+
+async function main(): Promise<void> {
 	const args = process.argv.slice(2);
 
 	if (args.length < 1) {
@@ -13,7 +15,7 @@ function main(): void {
 
 	const baseURL = args[0];
 	console.log(`starting crawl of: ${baseURL}`);
-	process.exit(0);
+	await getHTML(baseURL);
 }
 
-main();
+void main();
