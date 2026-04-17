@@ -1,4 +1,5 @@
 import { crawlSiteAsync } from "./crawl";
+import { writeJSONReport } from "./report";
 
 function parsePositiveInteger(value: string): number | null {
 	const parsed = Number.parseInt(value, 10);
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
 	console.log(`starting crawl of: ${baseURL}`);
 	console.log(`using maxConcurrency=${maxConcurrency}, maxPages=${maxPages}`);
 	const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxPages);
+	writeJSONReport(pages, "report.json");
 
 	console.log("Finished crawling.");
 	const firstPage = Object.values(pages)[0];
