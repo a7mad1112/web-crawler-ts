@@ -3,6 +3,8 @@ import { describe, expect, test } from "vitest";
 import {
   getFirstParagraphFromHTML,
   getHeadingFromHTML,
+  getImagesFromHTML,
+  getURLsFromHTML,
   normalizeURL,
 } from "./crawl";
 
@@ -100,6 +102,88 @@ describe("getFirstParagraphFromHTML", () => {
     const inputBody = `<html><body><h1>Only heading</h1></body></html>`;
     const actual = getFirstParagraphFromHTML(inputBody);
     const expected = "";
+    expect(actual).toEqual(expected);
+  });
+});
+
+describe("getURLsFromHTML", () => {
+  test("converts relative URLs to absolute", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `<html><body><a href="/path/one"><span>Boot.dev</span></a></body></html>`;
+
+    const actual = getURLsFromHTML(inputBody, inputURL);
+    const expected = ["https://crawler-test.com/path/one"];
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("keeps absolute URLs as-is", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `<html><body><a href="https://other-site.com/path">Link</a></body></html>`;
+
+    const actual = getURLsFromHTML(inputBody, inputURL);
+    const expected = ["https://other-site.com/path"];
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("returns all anchor href values and skips missing href", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `
+      <html><body>
+        <a href="/one">One</a>
+        <a>Missing href</a>
+        <a href="/two">Two</a>
+      </body></html>
+    `;
+
+    const actual = getURLsFromHTML(inputBody, inputURL);
+    const expected = [
+      "https://crawler-test.com/one",
+      "https://crawler-test.com/two",
+    ];
+
+    expect(actual).toEqual(expected);
+  });
+});
+
+describe("getImagesFromHTML", () => {
+  test("converts relative src to absolute", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `<html><body><img src="/logo.png" alt="Logo"></body></html>`;
+
+    const actual = getImagesFromHTML(inputBody, inputURL);
+    const expected = ["https://crawler-test.com/logo.png"];
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("keeps absolute image URLs as-is", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `<html><body><img src="https://cdn.site.com/image.jpg"></body></html>`;
+
+    const actual = getImagesFromHTML(inputBody, inputURL);
+    const expected = ["https://cdn.site.com/image.jpg"];
+
+    expect(actual).toEqual(expected);
+  });
+
+  test("returns all image src values and skips missing src", () => {
+    const inputURL = "https://crawler-test.com";
+    const inputBody = `
+      <html><body>
+        <img src="/a.png">
+        <img alt="missing src">
+        <img src="/b.png">
+      </body></html>
+    `;
+
+    const actual = getImagesFromHTML(inputBody, inputURL);
+    const expected = [
+      "https://crawler-test.com/a.png",
+      "https://crawler-test.com/b.png",
+    ];
+
     expect(actual).toEqual(expected);
   });
 });

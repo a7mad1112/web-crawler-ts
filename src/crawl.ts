@@ -27,3 +27,37 @@ export function getFirstParagraphFromHTML(html: string): string {
 
   return paragraphInMain?.textContent?.trim() || paragraphInDocument?.textContent?.trim() || "";
 }
+
+export function getURLsFromHTML(html: string, baseURL: string): string[] {
+  const dom = new JSDOM(html);
+  const anchorEls = dom.window.document.querySelectorAll("a");
+  const urls: string[] = [];
+
+  for (const anchorEl of anchorEls) {
+    const href = anchorEl.getAttribute("href");
+    if (!href) {
+      continue;
+    }
+
+    urls.push(new URL(href, baseURL).href);
+  }
+
+  return urls;
+}
+
+export function getImagesFromHTML(html: string, baseURL: string): string[] {
+  const dom = new JSDOM(html);
+  const imageEls = dom.window.document.querySelectorAll("img");
+  const imageURLs: string[] = [];
+
+  for (const imageEl of imageEls) {
+    const src = imageEl.getAttribute("src");
+    if (!src) {
+      continue;
+    }
+
+    imageURLs.push(new URL(src, baseURL).href);
+  }
+
+  return imageURLs;
+}
